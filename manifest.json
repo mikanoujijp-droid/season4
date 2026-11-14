@@ -1,0 +1,19 @@
+{
+  "name": "Season 4",
+  "short_name": "Season 4",
+  "description": "学習成果カウンター Season 4（2027/5/1〜7/18）",
+  "lang": "ja",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0f16",
+  "theme_color": "#0b0f16",
+  "icons": [
+    {
+      "src": "icon-180.png",
+      "sizes": "180x180",
+      "type": "image/png",
+      "purpose": "any"
+    }
+  ]
+}

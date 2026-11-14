@@ -1,0 +1,947 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>学習成果カウンター Season 4</title>
+<meta name="description" content="短答・論文の処理問題数を記録する。Season 4（2027/5/1〜7/18）">
+<meta name="theme-color" content="#eef1f5" media="(prefers-color-scheme: light)">
+<meta name="theme-color" content="#0b0f16" media="(prefers-color-scheme: dark)">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="Season 4">
+<meta name="format-detection" content="telephone=no">
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="icon-180.png">
+<link rel="icon" type="image/png" href="icon-180.png">
+<style>
+/* Layout: one phone-width column. Season header, then two score cards (短答=blue, 論文=orange)
+   whose numbers dominate, then monthly totals, calendar, backup. */
+:root {
+  --bg: #eef1f5;
+  --surface: #ffffff;
+  --ink: #121722;
+  --muted: #566074;
+  --faint: #98a1b1;
+  --line: #d6dce6;
+  --tanto: #1b63d6;
+  --tanto-soft: #e4eefd;
+  --ronbun: #b85600;
+  --ronbun-soft: #fdecd9;
+  --on-kind: #ffffff;
+  --warn: #c2281c;
+  --shade: rgba(10, 16, 28, .45);
+  --font-body: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Hiragino Kaku Gothic ProN", "Noto Sans JP", "Yu Gothic UI", Meiryo, sans-serif;
+  --font-num: ui-rounded, "SF Pro Rounded", "Hiragino Maru Gothic ProN", -apple-system, BlinkMacSystemFont, "Noto Sans JP", sans-serif;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0b0f16;
+    --surface: #151b26;
+    --ink: #eef2f8;
+    --muted: #9ba6b8;
+    --faint: #5f6a7c;
+    --line: #283246;
+    --tanto: #6aaeff;
+    --tanto-soft: #15294a;
+    --ronbun: #ffa64d;
+    --ronbun-soft: #3c2710;
+    --on-kind: #0b0f16;
+    --warn: #ff8274;
+    --shade: rgba(0, 0, 0, .6);
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0b0f16;
+  --surface: #151b26;
+  --ink: #eef2f8;
+  --muted: #9ba6b8;
+  --faint: #5f6a7c;
+  --line: #283246;
+  --tanto: #6aaeff;
+  --tanto-soft: #15294a;
+  --ronbun: #ffa64d;
+  --ronbun-soft: #3c2710;
+  --on-kind: #0b0f16;
+  --warn: #ff8274;
+  --shade: rgba(0, 0, 0, .6);
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-body);
+  font-size: 16px;
+  line-height: 1.4;
+  touch-action: manipulation;
+  -webkit-tap-highlight-color: transparent;
+}
+.app {
+  max-width: 480px;
+  margin: 0 auto;
+  padding: calc(env(safe-area-inset-top, 0px) + 14px)
+           calc(env(safe-area-inset-right, 0px) + 16px)
+           calc(env(safe-area-inset-bottom, 0px) + 28px)
+           calc(env(safe-area-inset-left, 0px) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+h1, h2, h3, p { margin: 0; }
+button {
+  font: inherit;
+  color: inherit;
+  touch-action: manipulation;
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+  cursor: pointer;
+}
+button:disabled { cursor: default; }
+.num { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-weight: 800; }
+
+/* Test banner */
+.test-banner {
+  border: 1.5px dashed var(--warn);
+  color: var(--warn);
+  border-radius: 10px;
+  padding: 8px 12px;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+/* Season header */
+.season { display: flex; flex-direction: column; gap: 2px; padding: 2px 2px 0; }
+.season h1 { font-family: var(--font-num); font-size: 30px; font-weight: 800; letter-spacing: .01em; line-height: 1.15; }
+.season .period { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 15px; color: var(--muted); font-weight: 600; }
+.season .status { display: flex; align-items: center; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-top: 6px; }
+.season .today-date { font-variant-numeric: tabular-nums; font-size: 15px; font-weight: 600; }
+.season .remain {
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-size: 18px;
+  font-weight: 800;
+  background: var(--ink);
+  color: var(--bg);
+  border-radius: 999px;
+  padding: 4px 14px;
+}
+
+/* Score cards */
+.card {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 14px 16px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.card[data-kind="tanto"] { --kind: var(--tanto); --kind-soft: var(--tanto-soft); }
+.card[data-kind="ronbun"] { --kind: var(--ronbun); --kind-soft: var(--ronbun-soft); }
+.chip {
+  align-self: flex-start;
+  background: var(--kind);
+  color: var(--on-kind);
+  font-size: 15px;
+  font-weight: 800;
+  letter-spacing: .12em;
+  padding: 3px 10px 3px 12px;
+  border-radius: 8px;
+}
+.figures { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px 12px; flex-wrap: wrap; }
+.today { display: flex; align-items: baseline; gap: 6px; }
+.today .lbl { font-size: 14px; font-weight: 700; color: var(--muted); }
+.today .num { font-size: 64px; line-height: 1; color: var(--kind); display: inline-block; }
+.today .unit { font-size: 17px; font-weight: 700; color: var(--kind); }
+.total { display: flex; flex-direction: column; align-items: flex-end; gap: 0; padding-bottom: 4px; }
+.total .lbl { font-size: 12px; font-weight: 700; color: var(--muted); }
+.total .val { display: flex; align-items: baseline; gap: 3px; }
+.total .num { font-size: 28px; line-height: 1.15; display: inline-block; }
+.total .unit { font-size: 13px; font-weight: 700; color: var(--muted); }
+.row { display: grid; grid-template-columns: 1fr 1.6fr 1.2fr; gap: 8px; }
+.btn {
+  min-height: 54px;
+  border-radius: 14px;
+  border: 1.5px solid transparent;
+  font-family: var(--font-num);
+  font-weight: 800;
+  font-size: 26px;
+  line-height: 1;
+  transition: transform .08s ease;
+}
+.btn:active:not(:disabled) { transform: scale(.96); }
+.btn:disabled { opacity: .32; }
+.btn.minus { background: transparent; border-color: var(--line); color: var(--ink); }
+.btn.plus { background: var(--kind); color: var(--on-kind); }
+.btn.addn { background: var(--kind-soft); color: var(--kind); font-size: 19px; }
+button:focus-visible, input:focus-visible { outline: 3px solid var(--ink); outline-offset: 2px; }
+
+/* Before the season: inputs stay visible but inert. After: final totals take over. */
+body[data-phase="post"] .card .today,
+body[data-phase="post"] .card .row { display: none; }
+body[data-phase="post"] .card .total { align-items: flex-start; padding-bottom: 0; }
+body[data-phase="post"] .card .total .num { font-size: 64px; line-height: 1.05; color: var(--kind); }
+body[data-phase="post"] .card .total .unit { font-size: 17px; color: var(--kind); }
+body[data-phase="post"] .card .total .lbl { font-size: 14px; }
+
+@keyframes pop { 0% { transform: scale(1); } 45% { transform: scale(1.12); } 100% { transform: scale(1); } }
+.pop { animation: pop .18s ease-out; }
+
+/* Section headings */
+.sec-title { font-size: 13px; font-weight: 800; color: var(--muted); letter-spacing: .08em; padding: 0 2px; }
+.block { display: flex; flex-direction: column; gap: 8px; }
+.main { display: flex; flex-direction: column; gap: 14px; }
+
+/* Monthly totals */
+.months { background: var(--surface); border-radius: 14px; padding: 4px 14px; }
+.mrow { display: grid; grid-template-columns: auto 1fr 1fr; align-items: baseline; gap: 10px; padding: 9px 0; }
+.mrow + .mrow { border-top: 1px solid var(--line); }
+.mname { font-variant-numeric: tabular-nums; font-weight: 700; font-size: 14px; white-space: nowrap; }
+.mval { font-size: 13px; font-weight: 700; text-align: right; white-space: nowrap; }
+.mval b { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 19px; font-weight: 800; margin: 0 1px 0 4px; }
+.mval.t { color: var(--tanto); }
+.mval.r { color: var(--ronbun); }
+
+/* Calendar */
+.cal-nav { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+.cal-nav h3 { font-family: var(--font-num); font-variant-numeric: tabular-nums; font-size: 18px; font-weight: 800; }
+.nav-btn {
+  width: 48px; height: 44px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-size: 18px;
+  font-weight: 800;
+}
+.nav-btn:disabled { opacity: .3; }
+.wd, .grid { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 4px; }
+.wd span { text-align: center; font-size: 11px; font-weight: 700; color: var(--muted); }
+.cell {
+  min-height: 60px;
+  border-radius: 10px;
+  padding: 4px 1px 5px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 1px;
+  border: 1.5px solid transparent;
+  background: transparent;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.25;
+}
+.cell .d { font-family: var(--font-num); font-size: 13px; font-weight: 800; }
+.cell .v { font-size: 11px; font-weight: 700; white-space: nowrap; }
+.cell .v b { font-family: var(--font-num); font-weight: 800; }
+.cell.active { background: var(--surface); }
+.cell.active .t { color: var(--tanto); }
+.cell.active .r { color: var(--ronbun); }
+.cell.zero { border: 1.5px dashed var(--line); color: var(--faint); }
+.cell.active .v.none { color: var(--faint); }
+.cell.today { border: 2.5px solid var(--ink); }
+.cell.today .d { color: var(--ink); }
+.cell.future { color: var(--faint); min-height: 30px; }
+.cell.future .d { font-weight: 600; }
+.cal-hint { font-size: 12px; color: var(--muted); padding: 0 2px; }
+
+/* Backup */
+.backup-row { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.ghost {
+  min-height: 48px;
+  border-radius: 12px;
+  border: 1.5px solid var(--line);
+  background: var(--surface);
+  font-weight: 700;
+  font-size: 15px;
+}
+.last-backup { font-size: 13px; color: var(--muted); font-variant-numeric: tabular-nums; padding: 0 2px; }
+.last-backup.warn { color: var(--warn); font-weight: 700; }
+.msg { font-size: 13px; color: var(--muted); min-height: 1.4em; padding: 0 2px; }
+.msg.err, .save-warn { color: var(--warn); font-weight: 700; }
+.save-warn { font-size: 13px; padding: 0 2px; }
+
+/* Sheets */
+.overlay { position: fixed; inset: 0; background: var(--shade); z-index: 10; }
+.sheet {
+  position: fixed;
+  left: 0; right: 0;
+  bottom: var(--kb, 0px);
+  z-index: 11;
+  max-width: 480px;
+  margin: 0 auto;
+  background: var(--surface);
+  border-radius: 20px 20px 0 0;
+  padding: 18px 16px calc(env(safe-area-inset-bottom, 0px) + 16px);
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  box-shadow: 0 -8px 30px rgba(0, 0, 0, .18);
+}
+.sheet h3 { font-size: 18px; font-weight: 800; }
+.sheet .sub { font-size: 13px; color: var(--muted); }
+.sheet .actions { display: grid; grid-template-columns: 1fr 1.4fr; gap: 8px; }
+.sheet .solid {
+  min-height: 52px;
+  border-radius: 14px;
+  border: 0;
+  background: var(--ink);
+  color: var(--bg);
+  font-weight: 800;
+  font-size: 17px;
+}
+.sheet .ghost { min-height: 52px; font-size: 16px; }
+.field {
+  width: 100%;
+  min-height: 60px;
+  border-radius: 14px;
+  border: 1.5px solid var(--line);
+  background: var(--bg);
+  color: var(--ink);
+  font-family: var(--font-num);
+  font-variant-numeric: tabular-nums;
+  font-weight: 800;
+  font-size: 32px;
+  text-align: center;
+  padding: 6px 10px;
+  -webkit-appearance: none;
+  appearance: none;
+}
+.preview { font-size: 15px; font-weight: 700; font-variant-numeric: tabular-nums; min-height: 1.4em; }
+.preview.err { color: var(--warn); }
+.edit-row { display: grid; grid-template-columns: 52px 54px 1fr 54px; align-items: center; gap: 8px; }
+.edit-row[data-kind="tanto"] { --kind: var(--tanto); --kind-soft: var(--tanto-soft); }
+.edit-row[data-kind="ronbun"] { --kind: var(--ronbun); --kind-soft: var(--ronbun-soft); }
+.edit-row .name { font-weight: 800; color: var(--kind); font-size: 16px; }
+.edit-row .field { min-height: 54px; font-size: 26px; color: var(--kind); }
+.edit-row .btn { min-height: 54px; }
+[hidden] { display: none !important; }
+
+@media (prefers-reduced-motion: reduce) {
+  .pop { animation: none; }
+  .btn { transition: none; }
+}
+</style>
+</head>
+<body data-phase="in">
+<div class="app">
+
+  <p class="test-banner" id="testBanner" hidden></p>
+
+  <header class="season">
+    <h1 id="seasonTitle">Season 4</h1>
+    <p class="period">2027/5/1 → 2027/7/18</p>
+    <p class="status">
+      <span class="today-date" id="todayLabel">今日</span>
+      <strong class="remain" id="remain"></strong>
+    </p>
+  </header>
+
+  <main class="main">
+
+    <section class="card" data-kind="tanto" aria-labelledby="tantoTitle">
+      <h2 class="chip" id="tantoTitle">短答</h2>
+      <div class="figures">
+        <p class="today"><span class="lbl">今日</span><span class="num" data-today>0</span><span class="unit">問</span></p>
+        <p class="total"><span class="lbl" data-total-label>Season累計</span><span class="val"><span class="num" data-total>0</span><span class="unit">問</span></span></p>
+      </div>
+      <div class="row">
+        <button type="button" class="btn minus" data-act="dec" aria-label="短答を1問減らす">－</button>
+        <button type="button" class="btn plus" data-act="inc" aria-label="短答を1問増やす">＋</button>
+        <button type="button" class="btn addn" data-act="add" aria-label="短答に数を入力して加算する">＋数</button>
+      </div>
+    </section>
+
+    <section class="card" data-kind="ronbun" aria-labelledby="ronbunTitle">
+      <h2 class="chip" id="ronbunTitle">論文</h2>
+      <div class="figures">
+        <p class="today"><span class="lbl">今日</span><span class="num" data-today>0</span><span class="unit">問</span></p>
+        <p class="total"><span class="lbl" data-total-label>Season累計</span><span class="val"><span class="num" data-total>0</span><span class="unit">問</span></span></p>
+      </div>
+      <div class="row">
+        <button type="button" class="btn minus" data-act="dec" aria-label="論文を1問減らす">－</button>
+        <button type="button" class="btn plus" data-act="inc" aria-label="論文を1問増やす">＋</button>
+        <button type="button" class="btn addn" data-act="add" aria-label="論文に数を入力して加算する">＋数</button>
+      </div>
+    </section>
+
+    <section class="block" aria-labelledby="monthsTitle">
+      <h2 class="sec-title" id="monthsTitle">月間集計</h2>
+      <div class="months" id="months"></div>
+    </section>
+
+    <section class="block" aria-labelledby="calTitle">
+      <div class="cal-nav">
+        <button type="button" class="nav-btn" id="prevM" aria-label="前の月">＜</button>
+        <h3 id="calTitle">2027年5月</h3>
+        <button type="button" class="nav-btn" id="nextM" aria-label="次の月">＞</button>
+      </div>
+      <div class="wd" aria-hidden="true"><span>日</span><span>月</span><span>火</span><span>水</span><span>木</span><span>金</span><span>土</span></div>
+      <div class="grid" id="calGrid"></div>
+      <p class="cal-hint" id="calHint">日付をタップすると、その日の記録を修正できます。</p>
+    </section>
+
+    <section class="block" aria-labelledby="backupTitle">
+      <h2 class="sec-title" id="backupTitle">バックアップ</h2>
+      <div class="backup-row">
+        <button type="button" class="ghost" id="exportBtn">書き出す</button>
+        <button type="button" class="ghost" id="importBtn">読み込む</button>
+      </div>
+      <input type="file" id="importFile" accept=".json,application/json" hidden>
+      <p class="last-backup" id="lastBackup"></p>
+      <p class="save-warn" id="saveWarn" hidden>この端末では記録を保存できませんでした。アプリを閉じると記録が消えます。</p>
+      <p class="msg" id="msg" role="status" aria-live="polite"></p>
+    </section>
+
+  </main>
+</div>
+
+<div class="overlay" id="overlay" hidden></div>
+
+<section class="sheet" id="addSheet" role="dialog" aria-modal="true" aria-labelledby="addTitle" hidden>
+  <h3 id="addTitle">短答に加算</h3>
+  <input class="field" id="addInput" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" enterkeyhint="done" maxlength="3" placeholder="0" aria-label="加算する問題数">
+  <p class="preview" id="addPreview" aria-live="polite"></p>
+  <div class="actions">
+    <button type="button" class="ghost" id="addCancel">やめる</button>
+    <button type="button" class="solid" id="addOk">追加</button>
+  </div>
+</section>
+
+<section class="sheet" id="editSheet" role="dialog" aria-modal="true" aria-labelledby="editTitle" hidden>
+  <div>
+    <h3 id="editTitle">1月1日</h3>
+    <p class="sub">数字を書き換えると、その日の値がその数に置き換わります。</p>
+  </div>
+  <div class="edit-row" data-kind="tanto">
+    <span class="name">短答</span>
+    <button type="button" class="btn minus" data-act="dec" aria-label="短答を1問減らす">－</button>
+    <input class="field" id="editTanto" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="3" aria-label="短答の問題数">
+    <button type="button" class="btn plus" data-act="inc" aria-label="短答を1問増やす">＋</button>
+  </div>
+  <div class="edit-row" data-kind="ronbun">
+    <span class="name">論文</span>
+    <button type="button" class="btn minus" data-act="dec" aria-label="論文を1問減らす">－</button>
+    <input class="field" id="editRonbun" type="text" inputmode="numeric" pattern="[0-9]*" autocomplete="off" maxlength="2" aria-label="論文の問題数">
+    <button type="button" class="btn plus" data-act="inc" aria-label="論文を1問増やす">＋</button>
+  </div>
+  <button type="button" class="solid" id="editClose">閉じる</button>
+</section>
+
+<section class="sheet" id="importSheet" role="dialog" aria-modal="true" aria-labelledby="importTitle" hidden>
+  <div>
+    <h3 id="importTitle">現在のSeason 4の記録を置き換えます</h3>
+    <p class="sub" id="importSummary"></p>
+  </div>
+  <div class="actions">
+    <button type="button" class="ghost" id="importCancel">やめる</button>
+    <button type="button" class="solid" id="importOk">置き換える</button>
+  </div>
+</section>
+
+<script>
+(function () {
+  'use strict';
+
+  // ---- Season settings (spec ch.2, ch.3) ----
+  var SEASON_NO = 4;
+  var SEASON = { start: '2027-05-01', end: '2027-07-18' };
+  var MONTHS = ['2027-05', '2027-06', '2027-07'];
+  var KINDS = {
+    tanto: { label: '短答', short: '短', max: 999 },
+    ronbun: { label: '論文', short: '論', max: 99 }
+  };
+  var KIND_KEYS = ['tanto', 'ronbun'];
+  var DAY = 86400000;
+  var JST = 9 * 3600000;      // Asia/Tokyo, fixed (no DST)
+  var CUTOFF = 4 * 3600000;   // "today" switches at 4:00
+  var WD = ['日', '月', '火', '水', '木', '金', '土'];
+
+  // ---- Clock. Test mode: ?date=2027-05-19T01:30 is treated as "now" in Japan time. ----
+  var testParam = null;
+  try { testParam = new URLSearchParams(location.search).get('date'); } catch (e) {}
+  if (testParam === null && typeof window.__S2_TEST_DATE__ === 'string') testParam = window.__S2_TEST_DATE__;
+  var TEST = testParam !== null;
+  var testOffset = 0;
+  var testInvalid = false;
+  if (TEST) {
+    var tm = /^(\d{4})-(\d{2})-(\d{2})(?:T(\d{2}):(\d{2})(?::(\d{2}))?)?$/.exec(testParam);
+    if (tm) {
+      var wall = Date.UTC(+tm[1], +tm[2] - 1, +tm[3], tm[4] ? +tm[4] : 12, tm[5] ? +tm[5] : 0, tm[6] ? +tm[6] : 0);
+      testOffset = (wall - JST) - Date.now();
+    } else {
+      testInvalid = true;
+    }
+  }
+  function nowMs() { return Date.now() + testOffset; }
+  function isoDay(ms) { return new Date(ms).toISOString().slice(0, 10); }
+  function wallDate() { return isoDay(nowMs() + JST); }
+  function logicalToday() { return isoDay(nowMs() + JST - CUTOFF); }
+  function wallStamp() { return new Date(nowMs() + JST).toISOString().slice(0, 19) + '+09:00'; }
+  function dayNum(s) { return Date.UTC(+s.slice(0, 4), +s.slice(5, 7) - 1, +s.slice(8, 10)) / DAY; }
+  function diffDays(a, b) { return dayNum(a) - dayNum(b); }
+  function phaseOf(today) { return today < SEASON.start ? 'pre' : (today > SEASON.end ? 'post' : 'in'); }
+  function inSeason(s) { return /^\d{4}-\d{2}-\d{2}$/.test(s) && s >= SEASON.start && s <= SEASON.end && isoDay(dayNum(s) * DAY) === s; }
+  function fmtDate(s) {
+    var wd = WD[new Date(dayNum(s) * DAY).getUTCDay()];
+    return (+s.slice(0, 4)) + '/' + (+s.slice(5, 7)) + '/' + (+s.slice(8, 10)) + '（' + wd + '）';
+  }
+  function fmt(n) { return n.toLocaleString('ja-JP'); }
+  function pad(n) { return (n < 10 ? '0' : '') + n; }
+
+  // ---- Storage: one key only. No other localStorage key is read, written or removed. ----
+  var KEY = TEST ? 'gakushu-counter:season4:test' : 'gakushu-counter:season4:v1';
+  var saveFailed = false;
+  function blank() { return { app: 'gakushu-counter', season: SEASON_NO, version: 1, records: {}, lastExport: null }; }
+  function cleanCount(v, max) { return (typeof v === 'number' && Number.isInteger(v) && v >= 0 && v <= max) ? v : null; }
+  function normalize(d, strict) {
+    if (!d || typeof d !== 'object' || Array.isArray(d)) return { ok: false, reason: 'バックアップファイルの形式ではありません。' };
+    if (strict && (d.app !== 'gakushu-counter' || d.season !== SEASON_NO)) return { ok: false, reason: 'Season 4のバックアップファイルではありません。' };
+    var src = d.records;
+    if (!src || typeof src !== 'object' || Array.isArray(src)) {
+      if (strict) return { ok: false, reason: '記録が入っていないファイルです。' };
+      src = {};
+    }
+    var out = blank();
+    var keys = Object.keys(src).sort();
+    for (var i = 0; i < keys.length; i++) {
+      var k = keys[i], r = src[k];
+      var t = r && typeof r === 'object' ? cleanCount(r.tanto === undefined ? 0 : r.tanto, KINDS.tanto.max) : null;
+      var n = r && typeof r === 'object' ? cleanCount(r.ronbun === undefined ? 0 : r.ronbun, KINDS.ronbun.max) : null;
+      if (!inSeason(k) || t === null || n === null) {
+        if (strict) return { ok: false, reason: '記録の形式が正しくありません（' + k + '）。' };
+        continue;
+      }
+      if (t || n) out.records[k] = { tanto: t, ronbun: n };
+    }
+    if (typeof d.lastExport === 'string' && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}/.test(d.lastExport)) out.lastExport = d.lastExport;
+    return { ok: true, data: out };
+  }
+  function load() {
+    try {
+      var raw = localStorage.getItem(KEY);
+      if (!raw) return blank();
+      var res = normalize(JSON.parse(raw), false);
+      return res.ok ? res.data : blank();
+    } catch (e) {
+      return blank();
+    }
+  }
+  function save() {
+    try {
+      localStorage.setItem(KEY, JSON.stringify(data));
+      saveFailed = false;
+    } catch (e) {
+      saveFailed = true;
+    }
+  }
+  var data = load();
+
+  function getCount(date, kind) { var r = data.records[date]; return r ? (r[kind] || 0) : 0; }
+  function setCount(date, kind, value) {
+    var max = KINDS[kind].max;
+    var v = Math.max(0, Math.min(max, Math.floor(Number(value) || 0)));
+    var r = data.records[date] || { tanto: 0, ronbun: 0 };
+    r = { tanto: r.tanto || 0, ronbun: r.ronbun || 0 };
+    r[kind] = v;
+    if (r.tanto || r.ronbun) data.records[date] = r; else delete data.records[date];
+    save();
+    renderAll();
+  }
+  function sumPrefix(kind, prefix) {
+    var s = 0;
+    for (var k in data.records) if (k.indexOf(prefix) === 0) s += data.records[k][kind] || 0;
+    return s;
+  }
+
+  // ---- Elements ----
+  function $(id) { return document.getElementById(id); }
+  var cards = {};
+  Array.prototype.forEach.call(document.querySelectorAll('.card[data-kind]'), function (el) {
+    cards[el.dataset.kind] = {
+      el: el,
+      today: el.querySelector('[data-today]'),
+      total: el.querySelector('[data-total]'),
+      totalLabel: el.querySelector('[data-total-label]'),
+      dec: el.querySelector('[data-act="dec"]'),
+      inc: el.querySelector('[data-act="inc"]'),
+      add: el.querySelector('[data-act="add"]')
+    };
+  });
+  var editInputs = { tanto: $('editTanto'), ronbun: $('editRonbun') };
+
+  var viewMonth = 0;
+  var lastToday = null;
+  var rendered = false;
+  var reduceMotion = window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches;
+
+  function setNum(el, value) {
+    var s = fmt(value);
+    if (el.textContent === s) return;
+    el.textContent = s;
+    if (rendered && !reduceMotion) {
+      el.classList.remove('pop');
+      void el.offsetWidth;
+      el.classList.add('pop');
+    }
+  }
+  function defaultMonth(today, ph) {
+    if (ph === 'pre') return 0;
+    if (ph === 'post') return MONTHS.length - 1;
+    var i = MONTHS.indexOf(today.slice(0, 7));
+    return i < 0 ? 0 : i;
+  }
+
+  // ---- Render ----
+  function renderAll() {
+    var today = logicalToday();
+    var ph = phaseOf(today);
+    if (today !== lastToday) { lastToday = today; viewMonth = defaultMonth(today, ph); }
+    document.body.dataset.phase = ph;
+
+    $('seasonTitle').textContent = ph === 'post' ? 'Season 4 終了' : 'Season 4';
+    $('todayLabel').textContent = '今日 ' + fmtDate(today);
+    $('remain').textContent = ph === 'in' ? '残り' + (diffDays(SEASON.end, today) + 1) + '日'
+      : ph === 'pre' ? '開始まであと' + diffDays(SEASON.start, today) + '日'
+      : '最終成績';
+
+    KIND_KEYS.forEach(function (kind) {
+      var c = cards[kind];
+      var tv = ph === 'in' ? getCount(today, kind) : 0;
+      setNum(c.today, tv);
+      setNum(c.total, sumPrefix(kind, ''));
+      c.totalLabel.textContent = ph === 'post' ? '最終成績（Season累計）' : 'Season累計';
+      c.dec.disabled = ph !== 'in' || tv <= 0;
+      c.inc.disabled = ph !== 'in' || tv >= KINDS[kind].max;
+      c.add.disabled = ph !== 'in' || tv >= KINDS[kind].max;
+    });
+
+    $('months').innerHTML = MONTHS.map(function (m, i) {
+      return '<div class="mrow"><span class="mname">' + (+m.slice(0, 4)) + '年' + (+m.slice(5, 7)) + '月</span>' +
+        '<span class="mval t">短答<b>' + fmt(sumPrefix('tanto', m)) + '</b>問</span>' +
+        '<span class="mval r">論文<b>' + fmt(sumPrefix('ronbun', m)) + '</b>問</span></div>';
+    }).join('');
+
+    renderCalendar(today, ph);
+    renderBackup();
+    if (editDate) syncEditInputs(false);
+    rendered = true;
+  }
+
+  function renderCalendar(today, ph) {
+    var ym = MONTHS[viewMonth];
+    var y = +ym.slice(0, 4), mo = +ym.slice(5, 7) - 1;
+    var first = new Date(Date.UTC(y, mo, 1)).getUTCDay();
+    var days = new Date(Date.UTC(y, mo + 1, 0)).getUTCDate();
+    $('calTitle').textContent = y + '年' + (mo + 1) + '月';
+    $('prevM').disabled = viewMonth === 0;
+    $('nextM').disabled = viewMonth === MONTHS.length - 1;
+    var h = '';
+    for (var i = 0; i < first; i++) h += '<div class="cell blank"></div>';
+    for (var d = 1; d <= days; d++) {
+      var ds = ym + '-' + pad(d);
+      if (ph === 'pre' || ds > today || !inSeason(ds)) {
+        h += '<div class="cell future"><span class="d">' + d + '</span></div>';
+        continue;
+      }
+      var t = getCount(ds, 'tanto'), r = getCount(ds, 'ronbun');
+      var cls = (t || r) ? 'active' : 'zero';
+      if (ph === 'in' && ds === today) cls += ' today';
+      h += '<button type="button" class="cell ' + cls + '" data-date="' + ds + '" aria-label="' +
+        (mo + 1) + '月' + d + '日 短答' + t + '問 論文' + r + '問。修正する">' +
+        '<span class="d">' + d + '</span>' +
+        '<span class="v t' + (t ? '' : ' none') + '">短 <b>' + t + '</b></span>' +
+        '<span class="v r' + (r ? '' : ' none') + '">論 <b>' + r + '</b></span></button>';
+    }
+    $('calGrid').innerHTML = h;
+    $('calHint').hidden = ph === 'pre';
+  }
+
+  function renderBackup() {
+    var el = $('lastBackup');
+    var le = data.lastExport ? data.lastExport.slice(0, 10) : null;
+    el.textContent = le ? '最終バックアップ：' + (+le.slice(5, 7)) + '/' + (+le.slice(8, 10)) : '最終バックアップ：まだありません';
+    var ref = le;
+    if (!ref) { var ks = Object.keys(data.records).sort(); ref = ks.length ? ks[0] : null; }
+    el.classList.toggle('warn', !!ref && diffDays(wallDate(), ref) >= 7);
+    $('saveWarn').hidden = !saveFailed;
+  }
+
+  function say(text, isErr) {
+    var m = $('msg');
+    m.textContent = text;
+    m.classList.toggle('err', !!isErr);
+  }
+
+  // ---- Sheets ----
+  var openSheet = null;
+  var opener = null;
+  function showSheet(id) {
+    if (openSheet) hideSheet(true);
+    opener = document.activeElement;
+    openSheet = $(id);
+    $('overlay').hidden = false;
+    openSheet.hidden = false;
+    document.body.style.overflow = 'hidden';
+  }
+  function hideSheet(silent) {
+    if (!openSheet) return;
+    var active = document.activeElement;
+    if (active && openSheet.contains(active)) active.blur();
+    openSheet.hidden = true;
+    $('overlay').hidden = true;
+    document.body.style.overflow = '';
+    var wasEdit = openSheet.id === 'editSheet';
+    var d = editDate;
+    openSheet = null;
+    editDate = null;
+    addKind = null;
+    pendingImport = null;
+    if (!silent) {
+      var back = wasEdit && d ? document.querySelector('.cell[data-date="' + d + '"]') : opener;
+      if (back && back.focus && document.contains(back)) { try { back.focus({ preventScroll: true }); } catch (e) {} }
+    }
+    opener = null;
+  }
+  $('overlay').addEventListener('click', function () { hideSheet(); });
+  document.addEventListener('keydown', function (e) { if (e.key === 'Escape' && openSheet) hideSheet(); });
+
+  // Keep sheets above the on-screen keyboard.
+  if (window.visualViewport) {
+    var vv = window.visualViewport;
+    var kbUpdate = function () {
+      var kb = Math.max(0, window.innerHeight - vv.height - vv.offsetTop);
+      document.documentElement.style.setProperty('--kb', kb + 'px');
+    };
+    vv.addEventListener('resize', kbUpdate);
+    vv.addEventListener('scroll', kbUpdate);
+  }
+
+  // ---- Main screen input: +, -, and "+数" (adds to today's value) ----
+  var addKind = null;
+  KIND_KEYS.forEach(function (kind) {
+    cards[kind].el.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+      if (!b || b.disabled) return;
+      var today = logicalToday();
+      if (phaseOf(today) !== 'in') { renderAll(); return; }
+      var cur = getCount(today, kind);
+      if (b.dataset.act === 'inc') { if (cur < KINDS[kind].max) setCount(today, kind, cur + 1); }
+      else if (b.dataset.act === 'dec') { if (cur > 0) setCount(today, kind, cur - 1); }
+      else if (b.dataset.act === 'add') { openAdd(kind); }
+    });
+  });
+
+  function openAdd(kind) {
+    showSheet('addSheet');
+    addKind = kind;
+    $('addTitle').textContent = KINDS[kind].label + 'に加算';
+    var inp = $('addInput');
+    inp.maxLength = String(KINDS[kind].max).length;
+    inp.value = '';
+    updateAddPreview();
+    inp.focus();
+  }
+  function addState() {
+    var today = logicalToday();
+    var cur = getCount(today, addKind);
+    var n = parseInt($('addInput').value, 10) || 0;
+    return { today: today, cur: cur, n: n, max: KINDS[addKind].max, over: cur + n > KINDS[addKind].max };
+  }
+  function updateAddPreview() {
+    if (!addKind) return;
+    var s = addState(), p = $('addPreview');
+    if (s.over) {
+      p.textContent = '1日の上限は' + s.max + '問です。あと' + (s.max - s.cur) + '問まで追加できます。';
+      p.classList.add('err');
+    } else {
+      p.textContent = '今日 ' + fmt(s.cur) + '問 → ' + fmt(s.cur + s.n) + '問';
+      p.classList.remove('err');
+    }
+    $('addOk').disabled = s.over;
+  }
+  function confirmAdd() {
+    if (!addKind) return;
+    var s = addState();
+    if (phaseOf(s.today) !== 'in') { hideSheet(); renderAll(); return; }
+    if (s.over) { updateAddPreview(); return; }
+    var kind = addKind;
+    hideSheet();
+    if (s.n > 0) setCount(s.today, kind, s.cur + s.n);
+  }
+  $('addInput').addEventListener('input', function () {
+    var v = this.value.replace(/\D/g, '');
+    if (addKind) v = v.slice(0, String(KINDS[addKind].max).length);
+    if (this.value !== v) this.value = v;
+    updateAddPreview();
+  });
+  $('addInput').addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); confirmAdd(); } });
+  $('addOk').addEventListener('click', confirmAdd);
+  $('addCancel').addEventListener('click', function () { hideSheet(); });
+
+  // ---- Calendar: month switch, and overwrite of today / past days ----
+  var editDate = null;
+  $('prevM').addEventListener('click', function () { if (viewMonth > 0) { viewMonth--; renderAll(); } });
+  $('nextM').addEventListener('click', function () { if (viewMonth < MONTHS.length - 1) { viewMonth++; renderAll(); } });
+  $('calGrid').addEventListener('click', function (e) {
+    var b = e.target.closest ? e.target.closest('button[data-date]') : null;
+    if (!b) return;
+    var ds = b.dataset.date, today = logicalToday();
+    if (!inSeason(ds) || ds > today) return;
+    showSheet('editSheet');
+    editDate = ds;
+    $('editTitle').textContent = (+ds.slice(5, 7)) + '月' + (+ds.slice(8, 10)) + '日（' + WD[new Date(dayNum(ds) * DAY).getUTCDay()] + '）';
+    syncEditInputs(true);
+    try { $('editClose').focus({ preventScroll: true }); } catch (err) {}
+  });
+  function syncEditInputs(force) {
+    KIND_KEYS.forEach(function (kind) {
+      var inp = editInputs[kind];
+      var row = inp.parentNode;
+      var cur = getCount(editDate, kind);
+      if (force || document.activeElement !== inp) inp.value = String(cur);
+      row.querySelector('[data-act="dec"]').disabled = cur <= 0;
+      row.querySelector('[data-act="inc"]').disabled = cur >= KINDS[kind].max;
+    });
+  }
+  KIND_KEYS.forEach(function (kind) {
+    var inp = editInputs[kind];
+    var row = inp.parentNode;
+    var digits = String(KINDS[kind].max).length;
+    inp.addEventListener('input', function () {
+      if (!editDate) return;
+      var v = inp.value.replace(/\D/g, '').slice(0, digits);
+      if (inp.value !== v) inp.value = v;
+      setCount(editDate, kind, v === '' ? 0 : parseInt(v, 10));
+    });
+    inp.addEventListener('focus', function () { try { inp.select(); } catch (e) {} });
+    inp.addEventListener('blur', function () { if (editDate) inp.value = String(getCount(editDate, kind)); });
+    inp.addEventListener('keydown', function (e) { if (e.key === 'Enter') { e.preventDefault(); inp.blur(); } });
+    row.addEventListener('click', function (e) {
+      var b = e.target.closest ? e.target.closest('button[data-act]') : null;
+      if (!b || b.disabled || !editDate) return;
+      var cur = getCount(editDate, kind);
+      var next = b.dataset.act === 'inc' ? cur + 1 : cur - 1;
+      if (next < 0 || next > KINDS[kind].max) return;
+      setCount(editDate, kind, next);
+      inp.value = String(next);
+    });
+  });
+  $('editClose').addEventListener('click', function () { hideSheet(); });
+
+  // ---- Backup: export to a file, import from a file ----
+  function exportData() {
+    var stamp = wallStamp();
+    var sorted = {};
+    Object.keys(data.records).sort().forEach(function (k) { sorted[k] = data.records[k]; });
+    var out = { app: 'gakushu-counter', season: SEASON_NO, version: 1, records: sorted, lastExport: stamp };
+    var json = JSON.stringify(out, null, 2);
+    var name = 'season4_backup_' + stamp.slice(0, 10).replace(/-/g, '') + '.json';
+    function finish() {
+      data.lastExport = stamp;
+      save();
+      renderAll();
+      say('書き出しました（' + name + '）。');
+    }
+    function download() {
+      try {
+        var url = URL.createObjectURL(new Blob([json], { type: 'application/json' }));
+        var a = document.createElement('a');
+        a.href = url;
+        a.download = name;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        setTimeout(function () { URL.revokeObjectURL(url); }, 15000);
+        finish();
+      } catch (e) {
+        say('書き出せませんでした。', true);
+      }
+    }
+    // Touch devices: hand the file to the share sheet (iPhone: 「"ファイル"に保存」).
+    var coarse = window.matchMedia && matchMedia('(pointer: coarse)').matches;
+    if (coarse && navigator.share && navigator.canShare && typeof File === 'function') {
+      var types = ['application/json', 'text/plain'];
+      for (var i = 0; i < types.length; i++) {
+        var file = null;
+        try { file = new File([json], name, { type: types[i] }); } catch (e) { break; }
+        var can = false;
+        try { can = navigator.canShare({ files: [file] }); } catch (e) { can = false; }
+        if (!can) continue;
+        navigator.share({ files: [file] }).then(finish, function (err) {
+          if (err && err.name === 'AbortError') say('書き出しをやめました。');
+          else download();
+        });
+        return;
+      }
+    }
+    download();
+  }
+  $('exportBtn').addEventListener('click', exportData);
+
+  var pendingImport = null;
+  $('importBtn').addEventListener('click', function () { $('importFile').value = ''; $('importFile').click(); });
+  $('importFile').addEventListener('change', function () {
+    var f = this.files && this.files[0];
+    if (!f) return;
+    var reader = new FileReader();
+    reader.onerror = function () { say('ファイルを読み込めませんでした。', true); };
+    reader.onload = function () {
+      var parsed;
+      try { parsed = JSON.parse(String(reader.result)); }
+      catch (e) { say('読み込めませんでした。バックアップ（JSON）ファイルを選んでください。', true); return; }
+      var res = normalize(parsed, true);
+      if (!res.ok) { say('読み込めませんでした。' + res.reason, true); return; }
+      var t = 0, r = 0, n = 0;
+      for (var k in res.data.records) { t += res.data.records[k].tanto; r += res.data.records[k].ronbun; n++; }
+      showSheet('importSheet');
+      pendingImport = res.data;
+      $('importSummary').textContent = '読み込むファイル：' + n + '日分、短答 ' + fmt(t) + '問、論文 ' + fmt(r) + '問。今の記録は消えて、このファイルの内容になります。';
+      try { $('importCancel').focus({ preventScroll: true }); } catch (e) {}
+    };
+    reader.readAsText(f);
+  });
+  $('importOk').addEventListener('click', function () {
+    if (!pendingImport) { hideSheet(); return; }
+    data = pendingImport;
+    hideSheet();
+    save();
+    renderAll();
+    say('読み込みました。');
+  });
+  $('importCancel').addEventListener('click', function () { hideSheet(); });
+
+  // ---- Test banner ----
+  if (TEST) {
+    var tb = $('testBanner');
+    tb.hidden = false;
+    tb.textContent = testInvalid
+      ? 'テストモード：日付の指定を読み取れません（例 ?date=2027-05-19T01:30）。現在の日時で表示中。記録は本番と別に保存されます。'
+      : 'テストモード：' + testParam.replace('T', ' ') + ' として表示中。記録は本番と別に保存されます。';
+  }
+
+  // ---- Keep the date fresh: on open, on return to the app, and every minute ----
+  function reloadAndRender() { if (!openSheet && !saveFailed) data = load(); renderAll(); }
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) reloadAndRender(); });
+  window.addEventListener('pageshow', function (e) { if (e.persisted) reloadAndRender(); });
+  window.addEventListener('focus', function () { renderAll(); });
+  window.addEventListener('storage', function (e) { if (e.key === KEY && !openSheet && !saveFailed) { data = load(); renderAll(); } });
+  setInterval(renderAll, 60000);
+
+  renderAll();
+
+  // ---- Offline support ----
+  if ('serviceWorker' in navigator && (location.protocol === 'https:' || location.hostname === 'localhost' || location.hostname === '127.0.0.1')) {
+    window.addEventListener('load', function () {
+      try { navigator.serviceWorker.register('./sw.js').catch(function () {}); } catch (e) {}
+    });
+  }
+})();
+</script>
+</body>
+</html>
